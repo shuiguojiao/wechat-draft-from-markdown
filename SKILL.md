@@ -19,6 +19,15 @@ Use the scripts bundled with this skill:
 - `scripts/wechat-api.ts`
 - `scripts/md-to-wechat.ts`
 
+For layout, theme, or visual-style development, read first:
+
+- `STYLE_DEV.md`
+
+Future agents should:
+
+- read `STYLE_DEV.md` before changing styles
+- update `STYLE_DEV.md` after finishing if they learn a new WeChat-specific constraint or reliable pattern
+
 If `scripts/node_modules` is missing, run:
 
 ```bash

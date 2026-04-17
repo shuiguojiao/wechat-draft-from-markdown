@@ -253,7 +253,7 @@ pre.code__pre,
   overflow-x: auto;
   border-radius: 20px;
   margin: 1.25em 0 1.55em;
-  padding: 2.15em 1.1em 0.95em;
+  padding: 1.28em 0.72em 0.5em;
   background: #ffffff;
   color: #2f3747;
   box-shadow: 0 10px 24px rgba(148, 163, 184, 0.08);
@@ -265,11 +265,11 @@ pre.code__pre,
 
 .code__toolbar {
   position: absolute;
-  top: 14px;
-  left: 18px;
+  top: 6px;
+  left: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   line-height: 0;
 }
 
@@ -295,6 +295,7 @@ pre.code__pre,
 
 pre.code__pre code,
 .hljs.code__pre code {
+  display: block;
   background: transparent;
   color: inherit;
   padding: 0;
