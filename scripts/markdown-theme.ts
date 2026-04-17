@@ -211,10 +211,18 @@ blockquote > p {
   margin-top: 0.28em;
 }
 
+.wx-callout-list-nested {
+  margin: 0.08em 0 0.12em 1.6em;
+}
+
 .wx-callout-list-line {
   margin: 0.42em 0;
   color: #34486d;
   line-height: 1.82;
+}
+
+.wx-callout-list-line-nested {
+  margin: 0.24em 0;
 }
 
 .wx-callout-abstract, .wx-callout-summary, .wx-callout-tldr {

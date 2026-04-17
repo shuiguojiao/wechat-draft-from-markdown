@@ -136,6 +136,8 @@ This is a known high-risk area.
 
 Native ordered or unordered lists inside callout containers are not reliable in WeChat.
 Numbering and content can separate, drift, or stack in unexpected ways.
+Do not rewrite nested list HTML with regex-only matching.
+If nested lists must be normalized, walk the parsed HTML tree so parent `li` content is not split from child lists.
 
 Preferred fallback order:
 

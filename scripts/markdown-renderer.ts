@@ -6,6 +6,7 @@ import frontMatter from "front-matter";
 import hljs from "highlight.js";
 import { marked, Lexer } from "marked";
 import juice from "juice";
+import { parseFragment, serialize, serializeOuter } from "parse5";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkCjkFriendly from "remark-cjk-friendly";
@@ -42,6 +43,12 @@ interface CalloutToken {
   iconSvg: string;
   inlineTitle?: string;
   tokens: any[];
+}
+
+interface HtmlNode {
+  nodeName: string;
+  tagName?: string;
+  childNodes?: HtmlNode[];
 }
 
 const CALLOUT_META: Record<string, { label: string; iconSvg: string }> = {
@@ -114,23 +121,73 @@ function stripWrappingParagraph(html: string): string {
   return html.trim().replace(/^<p\b[^>]*>/, "").replace(/<\/p>$/, "").trim();
 }
 
-function normalizeCalloutLists(html: string): string {
-  const convertList = (listHtml: string, ordered: boolean): string => {
-    const items = [...listHtml.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)];
-    if (!items.length) return listHtml;
-    const rendered = items
-      .map((match, index) => {
-        const rawContent = stripWrappingParagraph(match[1] ?? "");
-        const marker = ordered ? `${index + 1}.` : "•";
-        return `<p class="wx-callout-list-line">${marker} ${rawContent}</p>`;
-      })
-      .join("");
-    return `<div class="wx-callout-list${ordered ? " wx-callout-list-ordered" : " wx-callout-list-unordered"}">${rendered}</div>`;
-  };
+function isElement(node: HtmlNode | undefined, tagName?: string): node is HtmlNode & { tagName: string; childNodes: HtmlNode[] } {
+  if (!node || typeof node.tagName !== "string") return false;
+  return tagName ? node.tagName === tagName : true;
+}
 
-  return html
-    .replace(/<ol\b[^>]*>[\s\S]*?<\/ol>/g, (match) => convertList(match, true))
-    .replace(/<ul\b[^>]*>[\s\S]*?<\/ul>/g, (match) => convertList(match, false));
+function parseHtmlFragment(html: string): HtmlNode[] {
+  return (parseFragment(html).childNodes ?? []) as HtmlNode[];
+}
+
+function serializeNodes(nodes: HtmlNode[]): string {
+  return nodes.map((node) => serializeOuter(node as any)).join("");
+}
+
+function normalizeNodeChildren(parent: HtmlNode, nestedInListItem = false): void {
+  if (!parent.childNodes?.length) return;
+  const normalized: HtmlNode[] = [];
+  for (const child of parent.childNodes) {
+    if (isElement(child, "ol") || isElement(child, "ul")) {
+      normalized.push(...parseHtmlFragment(renderListNode(child, nestedInListItem)));
+      continue;
+    }
+    normalizeNodeChildren(child, isElement(child, "li"));
+    normalized.push(child);
+  }
+  parent.childNodes = normalized;
+}
+
+function renderListNode(listNode: HtmlNode & { tagName: string; childNodes: HtmlNode[] }, nested: boolean): string {
+  const ordered = listNode.tagName === "ol";
+  const items = (listNode.childNodes ?? []).filter((child) => isElement(child, "li"));
+  if (!items.length) return serializeOuter(listNode as any);
+
+  const lines: string[] = [];
+  for (const [index, item] of items.entries()) {
+    const contentNodes: HtmlNode[] = [];
+    const nestedBlocks: string[] = [];
+
+    for (const child of item.childNodes ?? []) {
+      if (isElement(child, "ol") || isElement(child, "ul")) {
+        nestedBlocks.push(renderListNode(child, true));
+        continue;
+      }
+      normalizeNodeChildren(child, isElement(child, "li"));
+      contentNodes.push(child);
+    }
+
+    const contentHtml = stripWrappingParagraph(serializeNodes(contentNodes));
+    if (contentHtml) {
+      const marker = nested ? "" : ordered ? `${index + 1}.` : "•";
+      const markerPrefix = marker ? `${marker} ` : "";
+      const lineClass = nested ? "wx-callout-list-line wx-callout-list-line-nested" : "wx-callout-list-line";
+      lines.push(`<p class="${lineClass}">${markerPrefix}${contentHtml}</p>`);
+    }
+
+    if (nestedBlocks.length) {
+      lines.push(nestedBlocks.join(""));
+    }
+  }
+
+  const nestedClass = nested ? " wx-callout-list-nested" : "";
+  return `<div class="wx-callout-list${ordered ? " wx-callout-list-ordered" : " wx-callout-list-unordered"}${nestedClass}">${lines.join("")}</div>`;
+}
+
+export function normalizeCalloutLists(html: string): string {
+  const fragment = parseFragment(html) as HtmlNode;
+  normalizeNodeChildren(fragment);
+  return serialize(fragment as any);
 }
 
 export function stripWrappingQuotes(value: string): string {
