@@ -29,6 +29,13 @@ interface ParsedResult {
   contentImages: ImageInfo[];
 }
 
+function expandExternalLinks(markdown: string): string {
+  // [text](https://url) → text（https://url），skip images (![ ]) and anchors
+  return markdown.replace(/(?<!!)\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, text, url) => {
+    return `${text}（${url}）`;
+  });
+}
+
 export async function convertMarkdown(
   markdownPath: string,
   options?: { title?: string; theme?: string; color?: string; citeStatus?: boolean },
@@ -37,7 +44,8 @@ export async function convertMarkdown(
   const content = fs.readFileSync(markdownPath, "utf-8");
   const citeStatus = options?.citeStatus ?? true;
 
-  const { frontmatter, body } = parseFrontmatter(content);
+  const { frontmatter, body: rawBody } = parseFrontmatter(content);
+  const body = expandExternalLinks(rawBody);
 
   let title = stripWrappingQuotes(options?.title ?? "")
     || stripWrappingQuotes(frontmatter.title ?? "")

@@ -110,6 +110,29 @@ function injectCalloutInlineTitle(html: string, inlineTitle?: string): string {
   return `<p><span class="wx-callout-inline-title">${safeTitle}</span></p>${html}`;
 }
 
+function stripWrappingParagraph(html: string): string {
+  return html.trim().replace(/^<p\b[^>]*>/, "").replace(/<\/p>$/, "").trim();
+}
+
+function normalizeCalloutLists(html: string): string {
+  const convertList = (listHtml: string, ordered: boolean): string => {
+    const items = [...listHtml.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)];
+    if (!items.length) return listHtml;
+    const rendered = items
+      .map((match, index) => {
+        const rawContent = stripWrappingParagraph(match[1] ?? "");
+        const marker = ordered ? `${index + 1}.` : "•";
+        return `<p class="wx-callout-list-line">${marker} ${rawContent}</p>`;
+      })
+      .join("");
+    return `<div class="wx-callout-list${ordered ? " wx-callout-list-ordered" : " wx-callout-list-unordered"}">${rendered}</div>`;
+  };
+
+  return html
+    .replace(/<ol\b[^>]*>[\s\S]*?<\/ol>/g, (match) => convertList(match, true))
+    .replace(/<ul\b[^>]*>[\s\S]*?<\/ul>/g, (match) => convertList(match, false));
+}
+
 export function stripWrappingQuotes(value: string): string {
   if (!value) return value;
   const doubleQuoted = value.startsWith('"') && value.endsWith('"');
@@ -313,8 +336,10 @@ function createCalloutExtension() {
           };
         },
         renderer(this: any, token: CalloutToken) {
-          const inner = injectCalloutInlineTitle(this.parser.parse(token.tokens ?? []), token.inlineTitle);
-          return `<section class="wx-callout wx-callout-${token.calloutType}"><div class="wx-callout-title"><span class="wx-callout-icon" aria-hidden="true">${token.iconSvg}</span><span class="wx-callout-label">${token.headerLabel}</span></div><div class="wx-callout-body">${inner}</div></section>`;
+          const parsed = this.parser.parse(token.tokens ?? []);
+          const inner = normalizeCalloutLists(parsed);
+          const displayLabel = token.inlineTitle || token.headerLabel;
+          return `<section class="wx-callout wx-callout-${token.calloutType}"><div class="wx-callout-title"><span class="wx-callout-icon" aria-hidden="true">${token.iconSvg}</span><span class="wx-callout-label">${displayLabel}</span></div><div class="wx-callout-body">${inner}</div></section>`;
         },
       },
     ],
@@ -368,7 +393,21 @@ function buildRenderer(citeStatus: boolean) {
       const langText = lang.split(" ")[0] || "plaintext";
       const validLang = hljs.getLanguage(langText) ? langText : "plaintext";
       const highlighted = hljs.highlight(text, { language: validLang }).value;
-      return `<pre class="hljs code__pre"><span class="code__toolbar" aria-hidden="true"><span class="code__dot code__dot-red"></span><span class="code__dot code__dot-yellow"></span><span class="code__dot code__dot-green"></span></span><code class="language-${validLang}">${highlighted}</code></pre>`;
+      // WeChat often ignores white-space: pre in article bodies, so preserve
+      // line breaks and indentation explicitly in the rendered code HTML.
+      const preserveSpaces = (line: string): string => {
+        let result = "";
+        let inTag = false;
+        for (const ch of line) {
+          if (ch === "<") { inTag = true; result += ch; }
+          else if (ch === ">") { inTag = false; result += ch; }
+          else if (ch === " " && !inTag) { result += "&nbsp;"; }
+          else { result += ch; }
+        }
+        return result;
+      };
+      const wechatCode = highlighted.split("\n").map(preserveSpaces).join("<br>");
+      return `<pre class="hljs code__pre"><span class="code__toolbar" aria-hidden="true"><span class="code__dot code__dot-red"></span><span class="code__dot code__dot-yellow"></span><span class="code__dot code__dot-green"></span></span><code class="language-${validLang}">${wechatCode}</code></pre>`;
     },
     codespan({ text }: any) {
       return `<code>${text}</code>`;
@@ -408,6 +447,7 @@ export async function renderMarkdownDocument(
 
   const preprocessed = preprocessCjkEmphasis(markdown);
   let contentHtml = marked.parse(preprocessed) as string;
+  contentHtml = normalizeCalloutLists(contentHtml);
   if (!options.keepTitle) {
     contentHtml = contentHtml.replace(/<h[12][^>]*>[\s\S]*?<\/h[12]>/, "");
   }

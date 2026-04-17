@@ -132,8 +132,8 @@ blockquote {
   border: 1px solid var(--md-card-border);
   border-radius: 16px;
   color: #2d3b57;
-  background: linear-gradient(180deg, var(--md-card-bg), #f5f9fd);
-  box-shadow: 0 10px 24px rgba(16, 42, 67, 0.06);
+  background: #fafcff;
+  box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05);
 }
 
 blockquote > p {
@@ -141,31 +141,30 @@ blockquote > p {
 }
 
 .wx-callout {
-  margin: 1.35em 0;
-  padding: 1.15em 1.25em 1.2em;
-  border-radius: 22px;
-  border: 1px solid rgba(205, 220, 238, 0.72);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.08);
+  margin: 1.25em 0;
+  padding: 1.05em 1.15em 1.08em;
+  border-radius: 18px;
+  border: 1px solid rgba(214, 224, 236, 0.88);
+  background: #fcfdff;
+  box-shadow: 0 4px 14px rgba(148, 163, 184, 0.06);
 }
 
 .wx-callout-title {
-  display: flex;
-  align-items: center;
-  gap: 0.6em;
-  font-size: 0.96em;
-  font-weight: 500;
+  display: block;
+  font-size: 0.95em;
+  font-weight: 600;
   letter-spacing: 0;
-  margin-bottom: 0.8em;
+  margin-bottom: 0.72em;
 }
 
 .wx-callout-icon {
-  display: inline-flex;
+  display: inline-block;
   align-items: center;
   justify-content: center;
-  width: 1.2em;
-  height: 1.2em;
-  flex: 0 0 auto;
+  width: 1.08em;
+  height: 1.08em;
+  vertical-align: -0.16em;
+  margin-right: 0.38em;
 }
 
 .wx-callout-icon svg {
@@ -175,13 +174,15 @@ blockquote > p {
 }
 
 .wx-callout-label {
-  font-size: 1.02em;
-  font-weight: 500;
+  font-size: 1em;
+  font-weight: 600;
 }
 
 .wx-callout-inline-title {
   font-weight: 600;
   margin-right: 0.2em;
+  display: inline-block;
+  margin-bottom: 0.18em;
 }
 
 .wx-callout-body > :first-child {
@@ -198,7 +199,7 @@ blockquote > p {
 }
 
 .wx-callout-body p {
-  line-height: 1.72;
+  line-height: 1.76;
 }
 
 .wx-callout-body ol,
@@ -206,9 +207,19 @@ blockquote > p {
   margin-top: 0.35em;
 }
 
+.wx-callout-list {
+  margin-top: 0.28em;
+}
+
+.wx-callout-list-line {
+  margin: 0.42em 0;
+  color: #34486d;
+  line-height: 1.82;
+}
+
 .wx-callout-abstract, .wx-callout-summary, .wx-callout-tldr {
-  border-color: rgba(191, 220, 248, 0.88);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-color: rgba(197, 219, 240, 0.9);
+  background: #fcfdff;
 }
 
 .wx-callout-abstract .wx-callout-title,
@@ -218,8 +229,8 @@ blockquote > p {
 }
 
 .wx-callout-tip, .wx-callout-success {
-  border-color: rgba(205, 220, 238, 0.72);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-color: rgba(208, 220, 232, 0.92);
+  background: #fcfdff;
 }
 
 .wx-callout-tip .wx-callout-title,
@@ -228,8 +239,8 @@ blockquote > p {
 }
 
 .wx-callout-info, .wx-callout-note {
-  border-color: rgba(205, 220, 238, 0.72);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-color: rgba(208, 220, 232, 0.92);
+  background: #fcfdff;
 }
 
 .wx-callout-info .wx-callout-title,
@@ -238,13 +249,13 @@ blockquote > p {
 }
 
 .wx-callout-warning, .wx-callout-example {
-  border-color: rgba(205, 220, 238, 0.72);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-color: rgba(208, 220, 232, 0.92);
+  background: #fcfdff;
 }
 
 .wx-callout-warning .wx-callout-title,
 .wx-callout-example .wx-callout-title {
-  color: #8b5cf6;
+  color: #7f6a35;
 }
 
 pre.code__pre,

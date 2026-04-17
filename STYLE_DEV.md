@@ -1,71 +1,105 @@
 # WeChat Style Development Notes
 
-This note is for future agents working on layout or theme changes for `wechat-draft-from-markdown`.
+This note is for future agents changing layout, theme, renderer output, or structural article styling for `wechat-draft-from-markdown`.
 
-Read this file before changing article styles.
-If you discover a new WeChat-specific constraint or a reliable pattern, update this file after finishing.
+Read this file before changing visual output.
+If you learn a new WeChat-specific rendering constraint, update this file after finishing.
 
-## Goal
+## What This File Is For
 
-Develop styles that survive the full pipeline:
+This is not a general CSS note.
+It is a compatibility and design memo for one specific pipeline:
 
 - Markdown
 - rendered HTML
 - `juice` inline CSS
 - WeChat draft API
-- WeChat article rendering
+- final WeChat article rendering
 
-The target is not "looks good in a normal browser".
-The target is "looks correct inside WeChat".
+The real target is not:
 
-## Core Rule
+- "looks good in a normal browser"
 
-Prefer stable WeChat-compatible HTML and CSS over clever CSS.
+The real target is:
+
+- "still looks correct after WeChat has rendered it"
+
+## Design Stance
+
+Use a restrained editorial aesthetic.
+Do not chase cleverness if it reduces rendering stability.
+
+Bias toward:
+
+- simple hierarchy
+- real structure
+- conservative spacing
+- predictable inline styles
+- fewer moving parts
 
 If you must choose between:
 
-- prettier browser-only CSS
-- slightly simpler but more reliable WeChat output
+- prettier browser-only output
+- slightly plainer but more reliable WeChat output
 
 choose the second.
 
-## Known Pain Points
+## Non-Negotiable Compatibility Rules
 
-These issues already happened during real development:
+- Prefer stable WeChat-compatible HTML over intricate CSS tricks.
+- Prefer real DOM nodes over pseudo-elements for critical visuals.
+- Prefer one clear structure over nested wrappers.
+- Treat local browser preview as a hint, not as proof.
+- Validate with actual WeChat screenshots whenever the user is sensitive to visual fidelity.
 
-- Pseudo-elements are not reliable for critical visuals in WeChat.
-- Fine spacing often changes after WeChat rendering.
-- Code blocks are especially sensitive to padding, line-height, and inline layout.
-- `juice` inlining helps compatibility, but can change behavior compared with a stylesheet-driven browser preview.
-- A style that looks right in generated HTML may still look wrong in the final WeChat article.
+## Known Failure Modes
 
-## Rules For Critical Visual Elements
+These problems have already happened in real use:
+
+- pseudo-elements disappearing or behaving inconsistently
+- spacing becoming looser after WeChat rendering
+- code block padding shifting after inline CSS
+- local HTML looking fine while the final article looks off
+- list structures inside decorated containers becoming unstable
+- numbered items in callout cards drifting away from their text
+- cover images being cropped differently than expected in WeChat slots
+
+## Critical Visual Elements
 
 Do not use pseudo-elements for must-have UI details such as:
 
 - code block traffic-light dots
 - icons that must always appear
-- decorative markers that affect spacing perception
+- decorative markers that affect alignment perception
 
-Use real DOM nodes instead.
+Use real nodes instead.
 
-Current example:
+Current stable example:
 
 - code block dots are rendered as real elements in `scripts/markdown-renderer.ts`
-- do not revert them to `::before` or `box-shadow` tricks
 
-## Rules For Code Blocks
+Do not revert this to `::before`, `::after`, or `box-shadow` tricks.
 
-Code blocks were the hardest part to tune. Follow these rules:
+## Code Block Rules
 
-- Keep the structure simple: one `pre`, one toolbar node, one `code`.
-- Use real nodes for the three colored dots.
-- Use conservative padding values; WeChat tends to make loose layouts feel even looser.
-- Prefer smaller top padding than you would choose for a browser-only design.
-- Force code content to start on its own line with `display: block` on the inner `code`.
-- Avoid complicated nested wrappers unless necessary.
+Code blocks are the most sensitive styled element in the pipeline.
+Keep them structurally simple.
 
-When adjusting code blocks, change one of these at a time:
+Preferred structure:
+
+- one `pre`
+- one toolbar node
+- one `code`
+
+Rules:
+
+- use real nodes for the three dots
+- keep padding conservative
+- prefer smaller top padding than you would in browser-only design
+- force inner `code` to start on its own line with `display: block`
+- avoid extra wrappers unless a concrete bug requires them
+
+When tuning code blocks, change one variable family at a time:
 
 - `pre` padding
 - toolbar `top`
@@ -74,81 +108,116 @@ When adjusting code blocks, change one of these at a time:
 - font-size
 - border radius
 
-Do not change several spacing variables at once unless the current result is completely broken.
+Do not rewrite several spacing variables at once unless the current output is badly broken.
 
-## Rules For Callouts
+## Callout Rules
 
-WeChat callouts should use:
+Callouts are visually important but structurally fragile in WeChat.
+
+Preferred callout pattern:
 
 - real HTML structure
 - fixed header row
-- simple borders and backgrounds
+- simple border and background treatment
 - SVG icons inline when needed
+- body text with conservative spacing
 
-Do not assume a Markdown callout title should become the visible card header.
-For this skill, the stable pattern is:
+Do not assume the Markdown callout title should become the visible card header.
+For this skill, the stable house pattern is:
 
 - fixed English type label in the header, such as `Abstract`, `Tip`, `Info`, `Note`
 - the Markdown callout title is injected into the body as inline title text
 
-This matched the desired house style better than the earlier Chinese-title-in-header version.
+This has proven more stable and visually cleaner than using the Markdown title as the visible header label.
 
-## Recommended Development Workflow
+### Lists Inside Callouts
 
-For any new style or style change:
+This is a known high-risk area.
+
+Native ordered or unordered lists inside callout containers are not reliable in WeChat.
+Numbering and content can separate, drift, or stack in unexpected ways.
+
+Preferred fallback order:
+
+1. Use the simplest possible text structure.
+2. If numbering matters, prefer plain paragraph lines such as `1. ...`, `2. ...`, `3. ...`.
+3. Only use more structured list layouts if plain lines are insufficient and have been visually verified in WeChat.
+
+Do not assume that local success with `<ol>` or `<ul>` means final WeChat stability.
+
+## Cover Rules
+
+WeChat cover rendering is a compatibility issue as much as a design issue.
+
+Design covers for crop safety:
+
+- keep critical text away from the top edge
+- keep essential content inside a safe central band
+- match the account's established cover ratio when one already exists
+- avoid designing covers like tall posters if the account uses wide banners
+
+If a newly generated cover looks good locally but loses text in WeChat, the ratio or text placement is wrong.
+Fix the composition, not just the typography.
+
+## Recommended Workflow For Style Changes
+
+For any new style or theme adjustment:
 
 1. Edit the minimum possible surface area.
 2. Run a dry-run publish first.
-3. Inspect the generated HTML, especially inline styles.
+3. Inspect the generated HTML and inline styles.
 4. Publish a real draft.
-5. Validate in WeChat screenshots, not only the local HTML.
-6. If the result is off, change one variable family only and republish.
+5. Compare the real WeChat result, not only the browser output.
+6. If the result is wrong, change one variable family only and republish.
 
-Do not do large theme rewrites and visual tuning in the same pass.
+Do not combine large visual redesign, structural renderer changes, and cover experimentation in one pass unless the user explicitly wants broader redesign.
 
-## Suggested Verification Checklist
+## Verification Checklist
 
-For each style change, verify:
+For each style change, verify at minimum:
 
 - heading spacing
 - callout structure
+- callout body density
+- callout numbering alignment if numbered content exists
 - code block top spacing
-- code block left/right padding
-- traffic-light dots visibility
-- code content line wrapping / line start position
+- code block left and right padding
+- traffic-light dot visibility
+- code line wrapping and start position
 - inline code pill appearance
+- cover crop safety in WeChat
 
-If the user is comparing against an older article, prioritize matching:
+If the user is comparing against an older article, prioritize:
 
 - relative spacing
 - density
 - hierarchy
 
-before doing color polish.
+before color polish.
 
 ## Current Stable Defaults
 
-These are currently treated as stable defaults:
+These are the current defaults unless the user explicitly asks otherwise:
 
 - cover style: `classroom-editorial`
 - publishing path: API only
 - theme file: `scripts/markdown-theme.ts`
 - renderer file: `scripts/markdown-renderer.ts`
 
-## Files To Touch
+## Files You Should Usually Touch
 
 Most style work should stay within:
 
 - `scripts/markdown-theme.ts`
 - `scripts/markdown-renderer.ts`
 
-Avoid changing publishing or upload scripts for pure visual tuning unless the visual problem is actually caused by HTML generation.
+Avoid changing publishing or upload scripts for purely visual work unless the real cause is in HTML generation or asset handling.
 
 ## After You Finish
 
-If you learned anything new about WeChat rendering behavior, add a short note here.
+If you discover a reliable new WeChat behavior, add it here briefly.
 
-Keep updates brief and practical:
+Keep additions practical:
 
 - what broke
 - what worked
