@@ -1,0 +1,4 @@
+interface:
+  display_name: "Markdown To WeChat Draft"
+  short_description: "把 Obsidian Markdown 转公众号草稿"
+  default_prompt: "Use $wechat-draft-from-markdown to turn a Markdown note into a WeChat draft with an optional generated cover."

@@ -1,0 +1,10 @@
+node_modules/
+scripts/node_modules/
+
+.env
+.env.*
+.baoyu-skills/
+
+*.log
+*.html
+.DS_Store
