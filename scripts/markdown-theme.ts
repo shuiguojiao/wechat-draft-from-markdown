@@ -89,17 +89,20 @@ h1::after {
 }
 
 h2 {
-  display: inline-block;
-  padding: 0.48em 0.9em;
-  margin: 3.2em 0 1.25em;
-  color: var(--md-title);
-  background: linear-gradient(180deg, #eef5fb, #e6f0f8);
-  border: 1px solid var(--md-card-border);
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(15, 76, 129, 0.08);
+  display: block;
+  padding: 0.12em 0 0.48em 0.72em;
+  margin: 2.8em 0 1.15em;
+  color: var(--md-primary-color);
+  background: transparent;
+  border: 0;
+  border-left: 5px solid var(--md-primary-color);
+  border-bottom: 1px solid rgba(15, 76, 129, 0.14);
+  border-radius: 0;
+  box-shadow: none;
   font-size: calc(var(--md-font-size) * 1.18);
   font-weight: 800;
   text-align: left;
+  line-height: 1.45;
 }
 
 h3 {
@@ -269,7 +272,11 @@ blockquote > p {
 pre.code__pre,
 .hljs.code__pre {
   position: relative;
-  overflow-x: auto;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  max-width: 100%;
   border-radius: 20px;
   margin: 1.25em 0 1.55em;
   padding: 1.28em 0.72em 0.5em;
@@ -315,11 +322,17 @@ pre.code__pre,
 pre.code__pre code,
 .hljs.code__pre code {
   display: block;
+  overflow: visible !important;
+  box-sizing: border-box;
+  min-width: 100%;
+  max-width: none;
   background: transparent;
   color: inherit;
   padding: 0;
   border-radius: 0;
-  white-space: pre;
+  white-space: pre !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
   font-family: inherit;
   font-size: 1em;
   line-height: inherit;
@@ -409,22 +422,93 @@ li {
   line-height: 1.85;
 }
 
-table {
+.wx-table-scroll {
+  display: block;
+  max-width: 100%;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.25em 0;
+}
+
+table,
+.wx-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
+  margin: 0;
+  font-size: 0.88em;
 }
 
 th {
   border: 1px solid #dde6f0;
-  padding: 0.42em 0.6em;
+  padding: 0.48em 0.58em;
   color: #1f304e;
   background: #eef4fa;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 td {
   border: 1px solid #dde6f0;
-  padding: 0.42em 0.6em;
+  padding: 0.48em 0.58em;
   color: var(--md-text);
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  vertical-align: top;
+}
+
+.wx-math-inline {
+  display: inline-block;
+  max-width: 100%;
+  color: inherit;
+  line-height: 1;
+  vertical-align: -0.16em;
+}
+
+.wx-math-inline svg {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  color: inherit;
+}
+
+.wx-math-text {
+  display: inline;
+  color: inherit;
+  font-family: "Cambria Math", "STIX Two Text", "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.wx-math-block {
+  display: block;
+  max-width: 100%;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  margin: 1em 0;
+  padding: 0.35em 0;
+  color: inherit;
+  text-align: center;
+}
+
+.wx-math-block svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  color: inherit;
+}
+
+.wx-math-fallback {
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
+  color: #8f2c56;
+  background: rgba(137, 76, 109, 0.08);
+  border-radius: 8px;
+  padding: 0.12em 0.32em;
 }
 
 hr {

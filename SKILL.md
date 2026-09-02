@@ -138,6 +138,7 @@ Do not keep reusing an unrelated old cover just because it already exists nearby
 
 Unless the user asks for a different direction, use this visual stance:
 
+- final aspect ratio: `2.35:1` (recommended `1200×511` pixels)
 - classroom-editorial, not flashy
 - light background
 - clear information hierarchy
@@ -154,6 +155,8 @@ Design covers for crop safety, not for a full uncropped canvas preview.
 
 Use these rules:
 
+- normalize the final cover file to `2.35:1`; a nearby generator ratio such as `21:9` is only an intermediate format
+- verify actual pixel dimensions before publishing
 - keep headline text inside a safe central band
 - avoid placing critical text too close to the top edge
 - prefer wide banner-like compositions over poster-like compositions when matching an existing account style

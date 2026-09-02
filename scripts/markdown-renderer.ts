@@ -13,6 +13,7 @@ import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkStringify from "remark-stringify";
 
 import { buildThemeCss, DEFAULT_STYLE, resolveColorToken, type ThemeStyle } from "./markdown-theme.ts";
+import { renderMathSvg } from "./math-renderer.ts";
 
 export { resolveColorToken } from "./markdown-theme.ts";
 
@@ -43,6 +44,19 @@ interface CalloutToken {
   iconSvg: string;
   inlineTitle?: string;
   tokens: any[];
+}
+
+interface MathToken {
+  type: "wxMathBlock" | "wxMathInline";
+  raw: string;
+  text: string;
+  display: boolean;
+  index: number;
+}
+
+interface MathEntry {
+  source: string;
+  display: boolean;
 }
 
 interface HtmlNode {
@@ -230,6 +244,15 @@ export function serializeFrontmatter(frontmatter: FrontmatterFields): string {
 
 export function cleanSummaryText(value: string): string {
   return value
+    .replace(/\${1,2}([^$\n]+?)\${1,2}/g, "$1")
+    .replace(/\\leq?/g, "≤")
+    .replace(/\\geq?/g, "≥")
+    .replace(/\\neq?/g, "≠")
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\_/g, "_")
+    .replace(/\\([A-Za-z]+)/g, "$1")
+    .replace(/[{}]/g, "")
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<br\s*\/?>/gi, " ")
@@ -352,6 +375,107 @@ function preprocessCjkEmphasis(markdown: string): string {
   return result.replace(/^(\s*>\s*)\\\[!([A-Za-z0-9_-]+)\]/gm, "$1[!$2]");
 }
 
+export function preprocessObsidianWikiLinks(markdown: string): string {
+  return markdown.replace(/(^|[^!])\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/gm, (_match, prefix, target, alias) => {
+    const cleanTarget = String(target).split("#")[0]!.trim();
+    const fallback = path.basename(cleanTarget).replace(/\.md$/i, "");
+    const label = String(alias ?? fallback).trim();
+    return `${prefix}${label}`;
+  });
+}
+
+function createMathExtension(entries: MathEntry[]) {
+  const pushToken = (
+    type: MathToken["type"],
+    raw: string,
+    source: string,
+    display: boolean,
+  ): MathToken => {
+    const index = entries.push({ source: source.trim(), display }) - 1;
+    return { type, raw, text: source.trim(), display, index };
+  };
+
+  return {
+    extensions: [
+      {
+        name: "wxMathBlock",
+        level: "block" as const,
+        start(src: string) {
+          const dollar = src.match(/^\s{0,3}\$\$/m)?.index;
+          const bracket = src.match(/^\s{0,3}\\\[/m)?.index;
+          const candidates = [dollar, bracket].filter((index): index is number => typeof index === "number");
+          return candidates.length ? Math.min(...candidates) : undefined;
+        },
+        tokenizer(src: string): MathToken | undefined {
+          const multiline = src.match(/^\s{0,3}\$\$[ \t]*\n([\s\S]+?)\n\s{0,3}\$\$[ \t]*(?:\n|$)/);
+          if (multiline) return pushToken("wxMathBlock", multiline[0], multiline[1]!, true);
+          const singleLine = src.match(/^\s{0,3}\$\$([^\n]+?)\$\$[ \t]*(?:\n|$)/);
+          if (singleLine) return pushToken("wxMathBlock", singleLine[0], singleLine[1]!, true);
+          const bracket = src.match(/^\s{0,3}\\\[([^\n]+?)\\\][ \t]*(?:\n|$)/);
+          if (bracket) return pushToken("wxMathBlock", bracket[0], bracket[1]!, true);
+        },
+        renderer(token: MathToken) {
+          return `<section class="wx-math-placeholder" data-wx-math-index="${token.index}"></section>`;
+        },
+      },
+      {
+        name: "wxMathInline",
+        level: "inline" as const,
+        start(src: string) {
+          const dollar = src.indexOf("$");
+          const paren = src.indexOf("\\(");
+          const candidates = [dollar, paren].filter((index) => index >= 0);
+          return candidates.length ? Math.min(...candidates) : undefined;
+        },
+        tokenizer(src: string): MathToken | undefined {
+          const dollar = src.match(/^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n$]))\1/);
+          if (dollar) return pushToken("wxMathInline", dollar[0], dollar[2]!, dollar[1] === "$$");
+          const paren = src.match(/^\\\(([^\\]*(?:\\.[^\\]*)*?)\\\)/);
+          if (paren) return pushToken("wxMathInline", paren[0], paren[1]!, false);
+        },
+        renderer(token: MathToken) {
+          return `<span class="wx-math-placeholder" data-wx-math-index="${token.index}"></span>`;
+        },
+      },
+    ],
+  };
+}
+
+async function replaceMathPlaceholders(html: string, entries: MathEntry[]): Promise<string> {
+  let result = html;
+  for (const [index, entry] of entries.entries()) {
+    const placeholder = entry.display
+      ? `<section class="wx-math-placeholder" data-wx-math-index="${index}"></section>`
+      : `<span class="wx-math-placeholder" data-wx-math-index="${index}"></span>`;
+    const calloutPlaceholder = entry.display
+      ? `<section class="wx-math-placeholder wx-math-callout-placeholder" data-wx-math-index="${index}"></section>`
+      : `<span class="wx-math-placeholder wx-math-callout-placeholder" data-wx-math-index="${index}"></span>`;
+    if (result.includes(calloutPlaceholder)) {
+      const readable = cleanSummaryText(entry.source) || entry.source;
+      const tag = entry.display ? "section" : "span";
+      result = result.replace(
+        calloutPlaceholder,
+        `<${tag} class="wx-math-text" role="math" aria-label="${escapeHtml(entry.source)}">${escapeHtml(readable)}</${tag}>`,
+      );
+      continue;
+    }
+    let replacement: string;
+    const accessibleSource = escapeHtml(entry.source);
+    try {
+      const svg = await renderMathSvg(entry.source, entry.display);
+      replacement = entry.display
+        ? `<section class="wx-math-block" role="math" aria-label="${accessibleSource}">${svg}</section>`
+        : `<span class="wx-math-inline" role="math" aria-label="${accessibleSource}">${svg}</span>`;
+    } catch {
+      replacement = entry.display
+        ? `<section class="wx-math-block wx-math-fallback" role="math" aria-label="${accessibleSource}">${accessibleSource}</section>`
+        : `<span class="wx-math-inline wx-math-fallback" role="math" aria-label="${accessibleSource}">${accessibleSource}</span>`;
+    }
+    result = result.replace(placeholder, replacement);
+  }
+  return result;
+}
+
 function createCalloutExtension() {
   return {
     extensions: [
@@ -394,7 +518,10 @@ function createCalloutExtension() {
         },
         renderer(this: any, token: CalloutToken) {
           const parsed = this.parser.parse(token.tokens ?? []);
-          const inner = normalizeCalloutLists(parsed);
+          const inner = normalizeCalloutLists(parsed).replace(
+            /class="wx-math-placeholder"/g,
+            'class="wx-math-placeholder wx-math-callout-placeholder"',
+          );
           const displayLabel = token.inlineTitle || token.headerLabel;
           return `<section class="wx-callout wx-callout-${token.calloutType}"><div class="wx-callout-title"><span class="wx-callout-icon" aria-hidden="true">${token.iconSvg}</span><span class="wx-callout-label">${displayLabel}</span></div><div class="wx-callout-body">${inner}</div></section>`;
         },
@@ -452,22 +579,41 @@ function buildRenderer(citeStatus: boolean) {
       const highlighted = hljs.highlight(text, { language: validLang }).value;
       // WeChat often ignores white-space: pre in article bodies, so preserve
       // line breaks and indentation explicitly in the rendered code HTML.
-      const preserveSpaces = (line: string): string => {
-        let result = "";
-        let inTag = false;
-        for (const ch of line) {
-          if (ch === "<") { inTag = true; result += ch; }
-          else if (ch === ">") { inTag = false; result += ch; }
-          else if (ch === " " && !inTag) { result += "&nbsp;"; }
-          else { result += ch; }
-        }
-        return result;
+      const preserveIndent = (line: string): string => {
+        const leading = line.match(/^[ \t]+/)?.[0] ?? "";
+        const indent = leading
+          .replace(/\t/g, "    ")
+          .replace(/ /g, "&nbsp;");
+        return indent + line.slice(leading.length);
       };
-      const wechatCode = highlighted.split("\n").map(preserveSpaces).join("<br>");
+      const wechatCode = highlighted.split("\n").map(preserveIndent).join("<br>");
       return `<pre class="hljs code__pre"><span class="code__toolbar" aria-hidden="true"><span class="code__dot code__dot-red"></span><span class="code__dot code__dot-yellow"></span><span class="code__dot code__dot-green"></span></span><code class="language-${validLang}">${wechatCode}</code></pre>`;
     },
     codespan({ text }: any) {
+      const markdownLink = text.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+      if (markdownLink) {
+        const [, label, href] = markdownLink;
+        if (citeStatus) {
+          const ref = addFootnote(label!, href!);
+          return `<a href="${href}" title="${label}">${escapeHtml(label!)}<sup>[${ref}]</sup></a>`;
+        }
+        return `<a href="${href}" title="${label}">${escapeHtml(label!)}</a>`;
+      }
       return `<code>${text}</code>`;
+    },
+    table({ header, rows }: any) {
+      const renderCell = (cell: any, tag: "th" | "td") => {
+        const text = this.parser.parseInline(cell.tokens ?? []);
+        const align = cell.align ? ` style="text-align:${cell.align}"` : "";
+        return `<${tag}${align}>${text}</${tag}>`;
+      };
+      const headerRow = header.map((cell: any) => renderCell(cell, "th")).join("");
+      const bodyRows = rows
+        .map((row: any[]) => `<tr>${row.map((cell) => renderCell(cell, "td")).join("")}</tr>`)
+        .join("");
+      const columns = Math.max(1, header.length);
+      const minimumWidth = columns <= 2 ? "100%" : `${columns * 140}px`;
+      return `<section class="wx-table-scroll"><table class="wx-table" style="min-width:${minimumWidth}"><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table></section>`;
     },
     hr() {
       return "<hr>";
@@ -499,12 +645,15 @@ export async function renderMarkdownDocument(
     breaks: true,
   });
   marked.use(createCalloutExtension());
+  const mathEntries: MathEntry[] = [];
+  marked.use(createMathExtension(mathEntries));
   const { renderer, footnotes } = buildRenderer(!!options.citeStatus);
   marked.use({ renderer });
 
-  const preprocessed = preprocessCjkEmphasis(markdown);
+  const preprocessed = preprocessCjkEmphasis(preprocessObsidianWikiLinks(markdown));
   let contentHtml = marked.parse(preprocessed) as string;
   contentHtml = normalizeCalloutLists(contentHtml);
+  contentHtml = await replaceMathPlaceholders(contentHtml, mathEntries);
   if (!options.keepTitle) {
     contentHtml = contentHtml.replace(/<h[12][^>]*>[\s\S]*?<\/h[12]>/, "");
   }
@@ -531,7 +680,7 @@ export async function renderMarkdownDocument(
   const html = juice(fullHtml, {
     inlinePseudoElements: true,
     preserveImportant: true,
-    resolveCSSVariables: false,
+    resolveCSSVariables: true,
   });
 
   return { html };
