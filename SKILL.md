@@ -37,10 +37,15 @@ Primary scripts:
 - `scripts/publish-draft.sh`
 - `scripts/wechat-api.ts`
 - `scripts/md-to-wechat.ts`
+- `scripts/normalize-cover.ts`
 
 Style and rendering notes:
 
 - `STYLE_DEV.md`
+
+Cover generation notes:
+
+- `references/cover-generation.md`
 
 Before changing layout, theme, renderer behavior, or visual structure:
 
@@ -162,17 +167,38 @@ Use these rules:
 - prefer wide banner-like compositions over poster-like compositions when matching an existing account style
 - if the existing local cover convention is already narrow or ultra-wide, match that ratio instead of inventing a new one
 
-If a newly generated cover is needed:
+### Generate A New Cover
 
-- prefer Codex built-in image generation first
-- use Gemini only if built-in generation is unavailable and `GEMINI_API_KEY` exists
+When a cover must be generated or replaced, read
+[`references/cover-generation.md`](references/cover-generation.md) and follow it.
 
-Save generated covers next to the article, preferably as:
+The important execution boundary is:
 
-- `imgs/cover-<slug>.jpg`
+- use Codex built-in `image_gen` as the default generator; it does not require an API key
+- do not attempt to call built-in `image_gen` from `publish-draft.sh` or another local script
+- copy the selected generated source into the workspace before using it
+- normalize the selected source deterministically to an exact `2.35:1` file
+- inspect the normalized image before publishing
 
-Use the chosen file as `--cover` when publishing.
-Do not insert the cover into the Markdown body unless the user explicitly asks.
+Normalize a crop-safe generated source with:
+
+```bash
+cd <skill-directory>/scripts
+npx -y bun normalize-cover.ts \
+  /absolute/path/to/generated-source.png \
+  /absolute/path/to/article/imgs/cover-<slug>.jpg \
+  --mode crop
+```
+
+The script defaults to `1200×511`. If the crop removes important content, rerun
+with `--mode pad --background '#f6f2e8'` instead of stretching the image.
+
+Use the normalized file as `--cover` when publishing. Do not insert it into the
+Markdown body unless the user explicitly asks.
+
+If built-in image generation fails or is unavailable, report that result. Use an
+external image API only after the user explicitly chooses that fallback and has
+configured its credentials locally.
 
 If the user says "use the same style as last time", keep the same overall visual language, but still adapt the actual concept to the current article unless they explicitly want the exact old cover reused.
 
@@ -211,6 +237,7 @@ Always report:
 - title
 - summary
 - cover path used
+- for a generated cover: built-in or fallback mode, final prompt, and verified dimensions
 - returned `media_id`
 - draft management link: `https://mp.weixin.qq.com`
 
@@ -239,7 +266,8 @@ If you are changing style or renderer behavior, read `STYLE_DEV.md` first.
 
 - Keep Markdown as the source of truth.
 - Prefer the API route and the bundled scripts.
-- Prefer Codex built-in image generation before Gemini.
+- Use Codex built-in image generation by default for new covers.
+- Never silently switch to an external image API.
 - Default theme to `default` unless the user asks otherwise.
 - If publishing fails because no cover is found, generate or supply a cover and retry once.
 - If `.env` is missing required credentials, stop and ask the user to provide `WECHAT_APP_ID` and `WECHAT_APP_SECRET`.

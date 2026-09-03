@@ -690,12 +690,22 @@ async function main(): Promise<void> {
 
   if (!author && resolved.default_author) author = resolved.default_author;
 
+  const rawCoverPath = args.cover ||
+    frontmatter.coverImage ||
+    frontmatter.featureImage ||
+    frontmatter.cover ||
+    frontmatter.image;
+  const coverPath = rawCoverPath && !path.isAbsolute(rawCoverPath) && args.cover
+    ? path.resolve(process.cwd(), rawCoverPath)
+    : rawCoverPath;
+
   if (args.dryRun) {
     console.log(JSON.stringify({
       articleType: args.articleType,
       title,
       author: author || undefined,
       digest: digest || undefined,
+      coverPath: coverPath || undefined,
       htmlPath,
       contentLength: htmlContent.length,
       placeholderImageCount: contentImages.length || undefined,
@@ -712,14 +722,6 @@ async function main(): Promise<void> {
   console.error("[wechat-api] Fetching access token...");
   const accessToken = await fetchAccessToken(creds.appId, creds.appSecret);
 
-  const rawCoverPath = args.cover ||
-    frontmatter.coverImage ||
-    frontmatter.featureImage ||
-    frontmatter.cover ||
-    frontmatter.image;
-  const coverPath = rawCoverPath && !path.isAbsolute(rawCoverPath) && args.cover
-    ? path.resolve(process.cwd(), rawCoverPath)
-    : rawCoverPath;
   const needNewsCoverFallback = args.articleType === "news" && !coverPath;
 
   console.error("[wechat-api] Uploading body images...");

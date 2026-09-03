@@ -2,6 +2,10 @@
   "name": "baoyu-post-to-wechat-scripts",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "npx -y bun test *.test.mjs",
+    "cover:normalize": "npx -y bun normalize-cover.ts"
+  },
   "dependencies": {
     "@jsquash/webp": "^1.5.0",
     "@mathjax/mathjax-newcm-font": "^4.1.3",
